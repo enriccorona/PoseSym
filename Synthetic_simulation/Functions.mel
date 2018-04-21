@@ -1,0 +1,327 @@
+// TODOS: and questions
+// 1- Add texture and ground plane
+// 2- Add light
+// 3- Save images and ground truth
+
+// questions:
+// 1- Non isoscaling? Maybe scaling the three axis proportional
+
+
+/////
+//
+//    SETUP: (This and create layers)
+//
+/////
+
+// LOAD MATERIALS 
+//file -f -options "v=0;"  -ignoreVersion  -typ "mayaBinary" -o "/Users/enric/Desktop/Materials_demo.mb";addRecentFile("/Users/enric/Desktop/Materials_demo.mb", "mayaBinary");
+//closeAllNodeEditors;
+//closeHypershade;
+
+
+CreatePolygonPlane;
+select -r pPlane1 ;
+setAttr "pPlane1.scaleX" 100;
+setAttr "pPlane1.scaleZ" 100;
+
+select -r pPlane1 ;
+sets -e -forceElement initialShadingGroup;// ( $mat[$i] + "SG" );
+
+int $num_cameras = 0;
+string $scene_objects[] = {};
+
+
+proc int Coll(string $mesh1, string $mesh2){
+    float $BBmin1[] = `getAttr ($mesh1 + ".boundingBoxMin")`;
+    float $BBmax1[] = `getAttr ($mesh1 + ".boundingBoxMax")`;
+    
+    float $BBmin2[] = `getAttr ($mesh2 + ".boundingBoxMin")`;
+    float $BBmax2[] = `getAttr ($mesh2 + ".boundingBoxMax")`;
+    
+    if($BBmin1[0] > $BBmax2[0] || $BBmin1[1] > $BBmax2[1] || $BBmin1[2] > $BBmax2[2] || $BBmin2[0] > $BBmax1[0] || $BBmin2[1] > $BBmax1[1] || $BBmin2[2] > $BBmax1[2]){
+        return 0;
+    }
+    return 1;
+}
+
+// CREATE MATERIALS (FUNCTION ADAPTED FROM http://ewertb.soundlinker.com/mel/mel.032.php)
+
+// A utility procedure to ease the connecting of two plugs with the same name
+proc connect( string $attr, string $place, string $file )
+{
+  connectAttr -f ( $place + "." + $attr ) ( $file + "." + $attr );
+}
+
+global proc string makeShader( string $file )
+{
+  // Create a Lambert Material, with Shading Group
+
+  string $material = `shadingNode -asShader lambert -name myLambert`;
+  string $SG = `sets -renderable true -noSurfaceShader true -empty -name "material"`;
+  connectAttr -f ( $material + ".outColor" ) ( $SG + ".surfaceShader" );
+  // Create a File Texture and link to Material color
+  string $fileNode = `shadingNode -asTexture file -name myFile`;
+  connectAttr -f ( $fileNode + ".outColor" ) ( $material + ".color" );
+
+  // Assign file to File Texture Name
+  setAttr -type "string" ( $fileNode + ".fileTextureName" ) $file;
+
+  // If you want a place2dTexture node, include the following
+  string $placeName = ( "place_" + $fileNode );
+  $placeName = `shadingNode -asUtility place2dTexture -name $placeName`;
+
+  return $SG;
+}
+  
+string $mat[] = {};
+$texture_list = `getFileList -folder "/Users/enric/Desktop/Textures/" -filespec "*.j*"`;
+
+for ($i = 0; $i < size($texture_list); $i++){ 
+    catch($mat[size($mat)] = `makeShader ("/Users/enric/Desktop/Textures/" + $texture_list[$i]) `);
+}
+
+string $mat_desk[] = {};
+$texture_list = `getFileList -folder "/Users/enric/Desktop/Desk_textures/" -filespec "*.j*"`;
+
+for ($i = 0; $i < size($texture_list); $i++){ 
+    catch($mat_desk[size($mat_desk)] = `makeShader ("/Users/enric/Desktop/Desk_textures/" + $texture_list[$i]) `);
+}
+
+// CREATE CAMERAS
+
+proc int create_cams(){
+    int $cam_scale = 1;
+    int $distance = 75;
+    int $variance_h = 5;
+    int $variance_d = 5;
+    int $num_cameras = 15;
+    int $mean_h = 35;
+    float $rotation = 0;    
+    int $horiz_distance;
+    
+    for( $i=0; $i<$num_cameras; ++$i){
+        //TODO: RANDOMIZE focal length AND field of view
+         camera -centerOfInterest 5 -focalLength 35 -lensSqueezeRatio 1 -cameraScale 1 -horizontalFilmAperture 1.41732 -horizontalFilmOffset 0 -verticalFilmAperture 0.94488 -verticalFilmOffset 0 -filmFit Fill -overscan 1 -motionBlur 0 -shutterAngle 144 -nearClipPlane 0.1 -farClipPlane 10000 -orthographic 0 -orthographicWidth 30 -panZoomEnabled 0 -horizontalPan 0 -verticalPan 0 -zoom 1  -horizontalFieldOfView 43 -verticalFieldOfView 57; objectMoveCommand; cameraMakeNode 1 "";
+//         camera -focalLength 35;
+
+         $h = `rand 25 ($distance-$variance_h)` + `gauss $variance_h`;
+         $h = `max 0 $h`;
+         $h = `min $distance $h`;
+         
+         if($i == 0){
+             $h = $distance;
+             $horiz_distance = `rand -5 5`;
+         }else{
+             $horiz_distance = `sqrt ($distance*$distance-$h*$h)` + `gauss $variance_d`;
+         }
+         
+         $angle = `rand 0 360` ;
+         
+         float $x = $horiz_distance*cos ($angle*3.14159/180);
+         float $z = $horiz_distance*sin ($angle*3.14159/180);
+         move -r $x $h $z;
+
+         if ($h == 0){
+             $rotation = 0;
+         }else{
+             if($horiz_distance == 0){
+                 $rotation = 90*180/3.14159;
+             }else{
+                 $rotation = -1*atan($h/$horiz_distance)*180/3.14159;
+             }
+         }
+         rotate -r -os -fo $rotation (90 - $angle) 0;
+         
+         string $instruction = "cameraShape"+($i+1) + ".mask";
+         setAttr $instruction 0;
+         string $instruction = "cameraShape"+($i+1) + ".locatorScale";
+         setAttr $instruction $cam_scale; 
+         setAttr ("cameraShape"+($i+1)+".renderable") 1;
+         setAttr ("cameraShape"+($i+1)+".mask") 1;
+         
+         
+         // SET BACKGROUND
+         
+ //        setAttr ($plane + ".depth") 200;
+    }
+    
+    return $num_cameras;
+}
+
+// DELETE CAMERAS FUNCTION
+
+proc delete_cams(int $num){
+    for( $c=1; $c<=$num; ++$c){ 
+        string $cam = "camera" + $c;
+        select $cam;
+        doDelete;
+    }
+}
+
+
+
+proc int correct_poses(string $scene_objects[]){
+    
+    for ($obj = 0; $obj < size($scene_objects); $obj++){
+        float $BBmin[] = `getAttr ($scene_objects[$obj] + ".boundingBoxMin")`;
+        float $BBmax[] = `getAttr ($scene_objects[$obj] + ".boundingBoxMax")`;
+        
+        if($BBmin[0] < -50 || $BBmin[1] < -50 || $BBmin[2] < -50 || $BBmax[0] > 50 || $BBmax[1] > 50 || $BBmax[2] > 50 ){
+            return true;
+        }
+        
+        for ($s = 0; $s < size($scene_objects); $s++){
+            if($s != $obj){
+                $collision = Coll($scene_objects[$obj], $scene_objects[$s]); // Condition for not having collisions. Probably will need to check with every other object
+                if ($collision){
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+// Change plane texture procedure:
+
+proc set_texture(int $scene_number, string $mat[]){
+/*    select pPlane1;
+    doDelete;
+    
+    CreatePolygonPlane;
+    select pPlane1;
+    setAttr "pPlane1.scaleX" 100;
+    setAttr "pPlane1.scaleZ" 100;
+*/
+    select pPlane1;
+    int $i = int(`rand 5`);
+    catch(`sets -e -forceElement ( $mat[$i] )`);   
+    
+    $fileid = fopen("/Users/enric/toronto_project/scenes/scene_" + $scene_number + ".csv");
+    fprint $fileid("Scene\n" + $scene_number + "\n"); // Field of view, these things etc.
+    fclose $fileid;
+}
+
+
+// Function to save images and poses in scene
+// ADD DEPTH LAYER
+//
+// createRenderLayer -name DepthLayer  -global;
+//
+// Now by hand: // Channel Box / Layer Editor TAB -> Right click on DepthLayer -> Attributes -> Presets -> Luminance Depth // Now, rather execute:
+//     disconnectAttr samplerInfo1.cameraNearClipPlane setRange1.oldMinX;
+//     disconnectAttr samplerInfo1.cameraFarClipPlane setRange1.oldMaxX;
+//     setAttr "setRange1.oldMinX" 120;
+//     setAttr "setRange1.oldMaxX" 180;
+//     setAttr "setRange1.oldMinY" 0;
+//     setAttr "setRange1.oldMaxY" 0;
+//     setAttr "setRange1.oldMinZ" 0;
+//     setAttr "setRange1.oldMaxZ" 0;     
+// Or by hand: select setRange1 Tab -> Right click on Old Min -> Break connection, write 110; Right click on Old Max -> Break connection, write 180; 
+// Max could be 6500 to have an output of milimeters
+
+createRenderLayer -name DepthLayer  -global;
+createRenderLayer -name ColorLayer  -global;
+
+// Tif16 images and manually set to expected size!
+setAttr "defaultRenderGlobals.imageFormat" 4;
+
+// Depth:
+// Min 0
+// Max 1000
+
+$scene_number = 1;
+
+proc save_scene(string $scene_objects[], int $scene_number, int $num_cameras){
+    
+//    $rgb_extension = ".exr"; //.exr //.tif
+    $rgb_extension = ".jpg";
+    
+    // OBTAINING COLOR AND DEPTH IMAGES WITH ALL OBJECTS
+    for( $c=1; $c<=$num_cameras; ++$c){ // $num_cameras instead of 5
+        string $cam = "camera" + $c;
+        string $final_name = "/Users/enric/toronto_project/scenes/scene_" + $scene_number + "_cam_" + $c + $rgb_extension;
+        
+//        render -layer ColorLayer $cam;
+        //sysFile -move $final_name "/Users/enric/Documents/maya/projects/default/images/tmp/ColorLayer/untitled.tif";
+        lookThru $cam;
+        
+        // Create random background rgb color 
+        
+        $name_file = `Mayatomr -render -l ColorLayer -pv`; //-cam $cam; 
+        sysFile -move $final_name $name_file;
+        //sysFile -move $final_name ("/Users/enric/Documents/maya/projects/default/images/tmp/ColorLayer/" + $cam + "/untitled.tif");
+        string $final_name = "/Users/enric/toronto_project/scenes/scene_" + $scene_number + "_depth_cam_" + $c + ".tif";
+        
+        render -layer DepthLayer $cam;
+
+        //sysFile -move $final_name "/Users/enric/Documents/maya/projects/default/images/tmp/ColorLayer/untitled.tif";
+        sysFile -move $final_name "/Users/enric/Documents/maya/projects/default/images/tmp/DepthLayer/untitled.tif";
+    }
+        
+    // OBTAINING DEPTH FOR LABELLING GROUND TRUTH
+    
+    
+    for ($i = 0; $i < size($scene_objects); $i++){
+        select $scene_objects[$i];
+        hide;
+    }
+    showHidden pPlane1;
+    for( $c=1; $c<= $num_cameras; ++$c){ //$num_cameras instead of 5
+        string $cam = "camera" + $c;
+        string $final_name = "/Users/enric/toronto_project/gt/scene_" + $scene_number + "_cam_" + $c + "_gt_Mesh_-1.tif";
+        
+        render -layer DepthLayer $cam;
+    //      sysFile -move $final_name "/Users/enric/Documents/maya/projects/default/images/tmp/DepthLayer/untitled.tif";
+        sysFile -move $final_name ("/Users/enric/Documents/maya/projects/default/images/tmp/DepthLayer/"+$cam + "/untitled.tif");
+    }
+        
+    setAttr "defaultRenderGlobals.imageFormat" 4;
+    for ($obj = 0; $obj < size($scene_objects); $obj++){
+        select pPlane1;
+        hide;
+        
+        for ($i = 0; $i < size($scene_objects); $i++){
+            select $scene_objects[$i];
+            hide;
+        }
+        // Label ground truth
+        showHidden $scene_objects[$obj];
+        for( $c=1; $c<= $num_cameras; ++$c){ //$num_cameras instead of 5
+            string $cam = "camera" + $c;
+            string $final_name = "/Users/enric/toronto_project/gt/scene_" + $scene_number + "_cam_" + $c + "_gt_" + $scene_objects[$obj] + ".tif";
+            
+            render -layer DepthLayer $cam;
+      //      sysFile -move $final_name "/Users/enric/Documents/maya/projects/default/images/tmp/DepthLayer/untitled.tif";
+            sysFile -move $final_name ("/Users/enric/Documents/maya/projects/default/images/tmp/DepthLayer/"+$cam + "/untitled.tif");
+        }
+    }
+    
+    showHidden -all;
+    
+    // SAVE POSES
+    $fileid = fopen("/Users/enric/toronto_project/scenes/poses_scene_" + $scene_number + ".csv");
+    fprint $fileid("Scene, BBminX, BBminY, BBminZ, BBmaxX, BBmaxY, BBmaxZ, ProjMat00, ProjMat10, ProjMat20, ProjMat30, ProjMat10, ProjMat11, ProjMat12, ProjMat13, ProjMat20, ProjMat21, ProjMat22, ProjMat23, ProjMat30, ProjMat31, ProjMat32, ProjMat33, scale \n");
+    
+    for ($i = 0; $i < size($scene_objects); $i++){
+        $BBmin = `getAttr ($scene_objects[$i] + ".boundingBoxMin")`;
+
+
+        $BBmax = `getAttr ($scene_objects[$i] + ".boundingBoxMax")`;
+        $ProjMat = `xform -q -m $scene_objects[$i]`;
+        $scale = `getAttr ($scene_objects[$i] + ".scaleX")`;
+        fprint $fileid($scene_objects[$i] + "," + $BBmin[0] + ","+$BBmin[1] + ","+$BBmin[2]+","+$BBmax[0]+","+$BBmax[1]+","+$BBmax[2]+","+$ProjMat[0] +"," + $ProjMat[1]+"," + $ProjMat[2]+"," +$ProjMat[3]+"," +$ProjMat[4]+"," +$ProjMat[5]+"," +$ProjMat[6]+"," +$ProjMat[7]+"," +$ProjMat[8]+"," +$ProjMat[9]+"," +$ProjMat[10]+"," +$ProjMat[11] +"," +$ProjMat[12] +"," +$ProjMat[13] +"," +$ProjMat[14] +"," +$ProjMat[15] + "," + $scale + "\n");
+    }
+    fclose $fileid;
+    $fileid = fopen("/Users/enric/toronto_project/scenes/cameras_scene_" + $scene_number + ".csv");
+    fprint $fileid("Scene, Camera_id, PosX, Pos_Y, Pos_Z\n"); // Field of view, these things etc.
+    
+    for ($i = 0; $i < $num_cameras; $i++){
+        $pos_cam = `getAttr ("camera" + ($i+1) + ".t")`;
+        fprint $fileid($scene_number + "," + ($i+1) + "," + $pos_cam[0] + "," + $pos_cam[1] + "," + $pos_cam[2] + "\n");
+    }
+    fclose $fileid;
+}
+
+
+

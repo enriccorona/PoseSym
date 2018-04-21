@@ -1,0 +1,84 @@
+polyPlatonicSolid -r 10 -l 10.515 -ax 0 1 0 -st 1  -cuv 4 -ch 1;
+// Result: pSolid1 polyPlatonicSolid1 // 
+select -r pSolid1 ;
+polySmooth  -mth 1 -sdt 2 -ovb 1 -ofb 2 -ofc 0 -ost 1 -ocr 0 -dv 1 -bnr 2 -c 1 -kb 1 -ksb 1 -khe 0 -kt 1 -kmb 2 -suv 1 -peh 0 -sl 1 -dpe 1 -ps 1 -ro -1 -ch 1 pSolid1;
+
+$vert = `polyEvaluate -vertex`;
+$num_cameras = 42; //$vert[0];
+
+// CREATE CAMERAS ON VERTICES OF SPHERE NORMALIZING THEM:
+for( $i = 0; $i < $num_cameras ; $i = $i+1){ //Condition: $x<$k[0]
+    $pos = `pointPosition ("pSolid1.vtx[" + $i + "]")`;
+    $x = float($pos[0]);
+    $h = float($pos[1]);
+    $z = float($pos[2]);
+    
+    float $dist = $x*$x + $h*$h + $z*$z;
+    float $norm = `sqrt($dist)`;
+
+    $x = 10*$x/$norm;
+    $h = 10*$h/$norm;
+    $z = 10*$z/$norm;
+    
+    $horiz_distance = sqrt($x*$x + $z*$z);
+    $angle = atan2($x,$z)*180/3.14159;
+    
+    $rotation = 0;
+    if ($h == 0){
+     $rotation = 0;
+    }else{
+     if($horiz_distance == 0 && $h > 0){
+         $rotation = -90;
+         continue;
+     }else if($horiz_distance == 0){
+         $rotation = 90;
+         continue;
+     }else{
+         $rotation = -1*atan2($h,$horiz_distance)*180/3.14159;
+     }
+    }
+    camera -centerOfInterest 5 -focalLength 35 -lensSqueezeRatio 1 -cameraScale 1 -horizontalFilmAperture 1.41732 -horizontalFilmOffset 0 -verticalFilmAperture 0.94488 -verticalFilmOffset 0 -filmFit Fill -overscan 1 -motionBlur 0 -shutterAngle 144 -nearClipPlane 0.1 -farClipPlane 10000 -orthographic 0 -orthographicWidth 30 -panZoomEnabled 0 -horizontalPan 0 -verticalPan 0 -zoom 1  -horizontalFieldOfView 43 -verticalFieldOfView 57; objectMoveCommand; cameraMakeNode 1 "";
+    select ("camera" + ( $i*4+1 ));
+    string $instruction = "cameraShape"+($i*4+1) + ".mask";
+    setAttr ("cameraShape" + ($i*4+1) + ".backgroundColor") -type double3 1 1 1 ;
+    setAttr $instruction 0;
+    move -r $x $h $z;
+    rotate -r -os -fo 0 $angle 0;
+    rotate -r -os -fo $rotation 0 0;  
+
+
+    camera -centerOfInterest 5 -focalLength 35 -lensSqueezeRatio 1 -cameraScale 1 -horizontalFilmAperture 1.41732 -horizontalFilmOffset 0 -verticalFilmAperture 0.94488 -verticalFilmOffset 0 -filmFit Fill -overscan 1 -motionBlur 0 -shutterAngle 144 -nearClipPlane 0.1 -farClipPlane 10000 -orthographic 0 -orthographicWidth 30 -panZoomEnabled 0 -horizontalPan 0 -verticalPan 0 -zoom 1  -horizontalFieldOfView 43 -verticalFieldOfView 57; objectMoveCommand; cameraMakeNode 1 "";
+    select ("camera" + ($i*4+2));
+    string $instruction = "cameraShape"+($i*4+2) + ".mask";
+    setAttr ("cameraShape" + ($i*4+2) + ".backgroundColor") -type double3 1 1 1 ;
+    setAttr $instruction 0;
+    move -r $x $h $z;
+    rotate -r -os -fo 0 $angle 0;
+    rotate -r -os -fo $rotation 0 0;  
+    rotate -r -os -fo 0 0 90;
+
+    camera -centerOfInterest 5 -focalLength 35 -lensSqueezeRatio 1 -cameraScale 1 -horizontalFilmAperture 1.41732 -horizontalFilmOffset 0 -verticalFilmAperture 0.94488 -verticalFilmOffset 0 -filmFit Fill -overscan 1 -motionBlur 0 -shutterAngle 144 -nearClipPlane 0.1 -farClipPlane 10000 -orthographic 0 -orthographicWidth 30 -panZoomEnabled 0 -horizontalPan 0 -verticalPan 0 -zoom 1  -horizontalFieldOfView 43 -verticalFieldOfView 57; objectMoveCommand; cameraMakeNode 1 "";
+    select ("camera" + ($i*4+3));
+    string $instruction = "cameraShape"+($i*4+3) + ".mask";
+    setAttr ("cameraShape" + ($i*4+3) + ".backgroundColor") -type double3 1 1 1 ;
+    setAttr $instruction 0;    
+    move -r $x $h $z;
+    rotate -r -os -fo 0 $angle 0;
+    rotate -r -os -fo $rotation 0 0;  
+    rotate -r -os -fo 0 0 180;
+
+    camera -centerOfInterest 5 -focalLength 35 -lensSqueezeRatio 1 -cameraScale 1 -horizontalFilmAperture 1.41732 -horizontalFilmOffset 0 -verticalFilmAperture 0.94488 -verticalFilmOffset 0 -filmFit Fill -overscan 1 -motionBlur 0 -shutterAngle 144 -nearClipPlane 0.1 -farClipPlane 10000 -orthographic 0 -orthographicWidth 30 -panZoomEnabled 0 -horizontalPan 0 -verticalPan 0 -zoom 1  -horizontalFieldOfView 43 -verticalFieldOfView 57; objectMoveCommand; cameraMakeNode 1 "";
+    select ("camera" + ($i*4 + 4));
+    string $instruction = "cameraShape"+($i*4+4) + ".mask";
+    setAttr ("cameraShape" + ($i*4+4) + ".backgroundColor") -type double3 1 1 1 ;
+    setAttr $instruction 0;    
+    move -r $x $h $z;
+    rotate -r -os -fo 0 $angle 0;
+    rotate -r -os -fo $rotation 0 0; 
+    rotate -r -os -fo 0 0 -90;      
+}
+
+$num_cameras = $num_cameras*4;
+
+select pSolid1;
+doDelete;

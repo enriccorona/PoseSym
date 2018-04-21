@@ -1,0 +1,264 @@
+////
+//
+//    GENERATE SCENE:
+//
+////
+
+// Check if depth layer already exists:
+if(catch( $oldminX = `getAttr "setRange1.oldMinX"`) ){
+    print("\n\nDepth layer is not rendering depth yet. To solve this error: \n");
+    print("Right panel -> Channel Box/Layer Editor -> Render Layers -> Right click on DepthLayer -> Attributes -> Presets -> Luminance Depth. \n\n");
+    error "No depth output";
+}else{
+    if (equivalentTol($oldminX,0.1,0.01)){
+     disconnectAttr samplerInfo1.cameraNearClipPlane setRange1.oldMinX;
+     disconnectAttr samplerInfo1.cameraFarClipPlane setRange1.oldMaxX;
+     setAttr "setRange1.oldMinX" 0;
+     setAttr "setRange1.oldMaxX" 1000;
+    }
+}
+
+// Declaring variables, change to render more scenes
+$start_from = 1;
+$number_of_scenes = 1;
+global string $scene_objects[] = {};
+
+int $scene_number = $start_from;
+while( $scene_number < $number_of_scenes + $start_from){
+    for ($i = 0; $i < size($scene_objects); $i++){
+        select $scene_objects[$i];
+        doDelete;
+    }
+    $scene_objects = {};
+    
+    $minimum_size = 4; //cm
+    $maximum_size = 25; //cm
+    
+    // Load object. Change direction for each case
+    $Num = 5;
+    $step_models = `getFileList -folder "/Users/enric/toronto_project/models/" -filespec "*.step"`;
+    
+    $num_step_models = size($step_models);
+    
+    $n = 0;
+    
+    // Resetting cameras
+    delete_cams($num_cameras);
+    $num_cameras = create_cams();
+    
+    // Add $Num objects
+    while( size($scene_objects) < $Num && $n < $Num*8){
+        
+        $n ++;
+        
+        // STEP IMPORT:
+        int $i = int(`rand $num_step_models`);
+        string $items[] = `ls -tr`;
+        
+        print("Importing " + $step_models[$i]);
+        
+        $direction = "/Users/enric/toronto_project/models/" + $step_models[$i];
+        file -import -type "STEP_ATF"  -ignoreVersion -ra true -mergeNamespacesOnClash false -namespace "scene" -options "ts=0;en=0;nt=15.0;st=0.0;gar=21.5;mel=11.314646;"  -pr $direction;
+        
+        // SELECT RECENTLY IMPORTED MESH
+        string $transforms[] = `ls -tr`;
+        string $objects[] = stringArrayRemove($items, $transforms);
+        
+        // TRANSFORM TO POLYGON
+        for ($j = 0; $j < size($objects) ; $j++){
+            string $children[] = `listRelatives -children $objects[$j]`;
+            for ($k = 0; $k < size($children); $k ++){
+                if ( catch( `nurbsToPoly -mnd 1  -ch 1 -f 1 -pt 0 -pc 200 -chr 0.9 -ft 0.01 -mel 0.001 -d 0.1 -ut 1 -un 3 -vt 1 -vn 3 -uch 0 -ucr 0 -cht 1 -es 0 -ntr 0 -mrt 0 -uss 1 $children[$k]`  )){
+                    $j = size($objects);
+                    $k = size($children);
+                }
+            }
+        }
+        print $i;
+        
+        string $transforms[] = `ls -tr`;
+        string $objects[] = stringArrayRemove($items, $transforms);
+        
+        for ($j = 0; $j < size($objects); $j++){
+            select -tgl $objects[$j];
+        }
+        
+        // JOIN PIECES INTO ONE: 
+        $name = "Mesh_" + $i;
+        print($name);
+        if( catch(`polyUnite -ch 1 -mergeUVSets 1 -centerPivot -n $name`)){
+            for ($j = 0; $j < size($objects); $j++){        
+                if(!(catch(`select $objects[$j]`))){
+                    doDelete;
+                }
+            }
+            continue;
+        }
+        
+        select -cl;
+        
+        for ($j = 0; $j < size($objects); $j++){
+            if(!catch( `select $objects[$j] `)){
+                doDelete;
+            }
+        }
+        
+        $BBmin = `getAttr ($name + ".boundingBoxMin")`;
+        $BBmax = `getAttr ($name + ".boundingBoxMax")`;
+        
+        float $sq_sized = ($BBmax[0] - $BBmin[0])*($BBmax[0] - $BBmin[0]) + ($BBmax[1] - $BBmin[1])*($BBmax[1] - $BBmin[1]) + ($BBmax[2] - $BBmin[2])*($BBmax[2] - $BBmin[2]);
+        
+        float $size = `sqrt $sq_sized`;
+        
+        if ($maximum_size < $size || $minimum_size > $size){
+            $min_scale = $minimum_size/$size;
+            $max_scale = $maximum_size/$size;
+            $scale = `rand $min_scale $max_scale`;
+            setAttr ($name + ".scaleZ") $scale;
+            setAttr ($name + ".scaleY") $scale;
+            setAttr ($name + ".scaleX") $scale;
+        }else{
+            $max_scale = max(2, $maximum_size/$size);
+            $scale = `rand 0.5 $max_scale`;
+            setAttr ($name + ".scaleZ") $scale;
+            setAttr ($name + ".scaleY") $scale;
+            setAttr ($name + ".scaleX") $scale;
+            
+        }
+        // ROTATE:
+        setAttr ($name + ".rotateZ") `rand 360`;
+        setAttr ($name + ".rotateY") `rand 360`;
+        setAttr ($name + ".rotateX") `rand 360`;
+        
+    
+        // FIND LOWEST POINT TO THEN MOVE OBJECT TO GROUND SURFACE
+        select $name;
+        $vert = `polyEvaluate -vertex`;
+        $minimum = float(10000);
+        
+        for ($j = 0; $j < $vert[0]; $j ++){
+            $direction = $name + ".vtx[" + $j + "]";
+            
+            $pos_vert = `pointPosition $direction`;
+            if($minimum > $pos_vert[1]){
+                $minimum = $pos_vert[1];
+            }
+        }
+        
+        // MOVE OBJECT TO GROUND IN Y AXIS, PLUS SOME MORE DISTANCE
+        $minimum = $minimum*-1 + 0.5;
+        move -r 0 $minimum 0 ;
+        
+        // MOVE OBJECT RANDOMLY IN X AND Z AXIS. MOVE AGAIN IF COLLISIONS WITH ANOTHER OBJECT
+        $collision = true;
+        while ($collision){ 
+            $x = `rand -10 10`;
+            $z = `rand -10 10`;
+            move -r $x 0 $z;
+            $collision = false;
+            for ($s = 0; $s < size($scene_objects); $s++){
+                $collision = Coll($name,$scene_objects[$s]); // Condition for not having collisions. Probably will need to check with every other object
+                if ($collision){
+                    break;
+                }
+            }
+        }
+        
+        print($scene_objects);
+        print("\n");
+
+            $scene_objects[size($scene_objects)] = $name;
+
+            print($scene_objects);
+            print("\n");
+
+            // CLEAN SELECTIONS
+            select $name;
+            python "RigidBody.CreateRigidBody(True).executeCommandCB()"; // Reference: http://forums.cgsociety.org/archive/index.php?t-1234914.html
+            
+    }
+
+    // DECLARE OBJECTS AS BULLET RIGID IN MAYA (TO SIMULATE THEM FALLING)    
+    for($i = 0; $i < size($scene_objects);$i++){
+        setAttr ("bulletRigidBodyShape" + ($i+1) + ".colliderShapeType") 9;
+        setAttr ("bulletRigidBodyShape" + ($i+1) + ".friction") 0.15;
+    //    setAttr ("bulletRigidBodyShape" + ($i+1) + ".centerOfMass") 0 0 0;
+    }
+    
+    setAttr "bulletSolverShape1.groundPlane" 1;
+    
+    // SIMULATE A FEW SECONDS
+    for($t = 0; $t < 400; $t++){
+        currentTime $t;
+    }
+    
+    $m = 0;
+    
+    // CHECK THAT THERE ARE NO COLLISIONS. IF THERE ARE, MOVE OBJECTS AGAIN. ALSO CHECKING NO OBJECT IS TOO FAR FROM THE ORIGIN
+    while(size($scene_objects)>1 && correct_poses($scene_objects) ){
+        $m = 0;
+        while($m < 9 && correct_poses($scene_objects)){
+            $m ++;
+            currentTime 1;
+            for ($s = 0; $s < size($scene_objects); $s++){
+    
+                    if(!catch(`select $scene_objects[$s]`)){
+                        $x = `rand -30 30`;
+                        $z = `rand -30 30`;
+                        move -moveX $x;
+                        move -moveZ $z;
+                    }
+            }
+            
+            
+            for($t = 0; $t < 400; $t++){
+                currentTime $t;
+            }
+        }
+        if ($m == 9){
+            string $scene_objs2[] = {};
+            for( $s=0 ; $s < size($scene_objects) - 1 ; $s++){
+                $scene_objs2[$s] = $scene_objects[$s];
+            }
+            select $scene_objects[$s];
+            doDelete;
+            $scene_objects = $scene_objs2;
+        }
+    }
+    
+    // IF AFTER SOME TRIALS, THE CURRENT OBJECTS ALWAYS WERE COLLIDING, RESET SCENE
+    if ($m >= 9){continue;}
+    
+    // ADD TEXTURE TO DESK
+    render -layer ColorLayer camera1;
+    set_texture($scene_number, $mat_desk);
+
+    // ADD BACKGROUND COLOR FOR EACH CAMERA. RANDOM AMONG CLEAR COLORS
+    for( $c=2; $c<=$num_cameras; ++$c){ // $num_cameras instead of 5
+        string $cam = "camera" + $c;
+        setAttr ($cam + ".backgroundColor") `rand 0.6 1` `rand 0.6 1` `rand 0.6 1`;
+    }
+
+    // ADD TEXTURE FOR OBJECTS
+    for ($obj = 0; $obj < size($scene_objects); $obj++){
+        select $scene_objects[$obj];
+        int $i = int(`rand (size($mat))`);
+        catch(`sets -e -forceElement ( $mat[$i] )`);
+    }
+    
+    // SET LIGHT RANDOMLY:
+    defaultPointLight(1, 1,1,1, 0, 0, 0,0,0, 1);
+    setAttr "pointLight1.translateX" `rand -50 50`;
+    setAttr "pointLight1.translateY" `rand 30 45`;
+    setAttr "pointLight1.translateZ" `rand -50 50`;
+    setAttr "pointLightShape1.intensity" `rand 1 2.5`;
+    
+    // SAVE SCENE:
+    save_scene($scene_objects, $scene_number, $num_cameras);
+    
+    // DELETE LIGHT:
+    select pointLight1;
+    doDelete;
+    
+    $scene_number++;
+}

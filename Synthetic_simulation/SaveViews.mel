@@ -1,0 +1,114 @@
+// Get views of listed models
+
+// RETRIEVE MODELS LIST
+$step_models = `getFileList -folder "/Users/enric/toronto_project/models/" -filespec "*.step"`;
+$num_step_models = size($step_models);
+
+int $i = int(`rand $num_step_models`);
+
+for ($i = 1074; $i < 1075; $i++){ 
+    string $items[] = `ls -tr`; 
+    
+    print("Importing " + $step_models[$i]); 
+    
+    // STEP IMPORT:
+    $direction = "/Users/enric/toronto_project/models/" + $step_models[$i];
+    file -import -type "STEP_ATF"  -ignoreVersion -ra true -mergeNamespacesOnClash false -namespace "scene" -options "ts=0;en=0;nt=15.0;st=0.0;gar=21.5;mel=11.314646;"  -pr $direction;
+    
+    // SELECT RECENTLY IMPORTED MESH 
+    string $transforms[] = `ls -tr`; 
+    string $objects[] = stringArrayRemove($items, $transforms); 
+    
+    for ($j = 0; $j < size($objects) ; $j++){
+        string $children[] = `listRelatives -children $objects[$j]`;        
+        for ($k = 0; $k < size($children); $k ++){
+            
+            if ( catch( `nurbsToPoly -mnd 1  -ch 1 -f 1 -pt 0 -pc 200 -chr 0.9 -ft 0.01 -mel 0.001 -d 0.1 -ut 1 -un 3 -vt 1 -vn 3 -uch 0 -ucr 0 -cht 1 -es 0 -ntr 0 -mrt 0 -uss 1 $children[$k]`  )){
+                //$j = size($objects);
+                //$k = size($children);
+                //print $j;
+            }
+        }
+    }
+    print $i; 
+    
+    string $transforms[] = `ls -tr`; 
+    string $objects[] = stringArrayRemove($items, $transforms); 
+    
+    for ($j = 0; $j < size($objects); $j++){
+        select -tgl $objects[$j];
+        //print($objects[$j]);
+        //print(`listRelatives -children $objects[$j]`);
+        //print("\n");
+    }
+    
+    // JOIN: 
+    $name = "Mesh_" + $i;
+    polyUnite -ch 1 -mergeUVSets 0 -centerPivot -n $name;
+    
+    print($name);
+    
+    select -cl;
+    
+    for ($j = 0; $j < size($objects); $j++){
+        if(!catch( `select $objects[$j] `)){
+            doDelete;
+        }
+    }
+    
+    $BBmin = `getAttr ($name + ".boundingBoxMin")`;
+    $BBmax = `getAttr ($name + ".boundingBoxMax")`;
+    
+    float $sq_sized = ($BBmax[0] - $BBmin[0])*($BBmax[0] - $BBmin[0]) + ($BBmax[1] - $BBmin[1])*($BBmax[1] - $BBmin[1]) + ($BBmax[2] - $BBmin[2])*($BBmax[2] - $BBmin[2]);
+    float $size = `sqrt $sq_sized`;
+    
+    $demo_size = 4;
+    $scale = $demo_size/$size;
+    setAttr ($name + ".scaleZ") $scale;
+    setAttr ($name + ".scaleY") $scale;
+    setAttr ($name + ".scaleX") $scale;
+       
+    $BBmin = `getAttr ($name + ".boundingBoxMin")`;
+    $BBmax = `getAttr ($name + ".boundingBoxMax")`;
+    
+    $midX = ($BBmax[0]+$BBmin[0])/2;
+    $midY = ($BBmax[1]+$BBmin[1])/2;
+    $midZ = ($BBmax[2]+$BBmin[2])/2;
+    
+    select $name;
+    move -r (-$midX) (-$midY) (-$midZ);
+    
+    select $name;
+    sets -e -forceElement lambert2SG;
+    
+    int $num_vert2[] = `polyEvaluate -vertex`; 
+    
+    if ($num_vert2[0] < 500){
+        float $volum = `computePolysetVolume`; 
+        if ($volum < 0 && $volum > -0.03){
+            print("Avoiding this one");   
+        }else if ($volum > 0 && $volum < 0.03){ 
+            print("Avoiding this one");
+        }
+    }
+    setAttr "DepthLayer.global" 0;
+    setAttr "DepthLayer.global" 1;
+    
+    // SAVE IMAGES:
+    for( $c=1; $c<=$num_cameras ; ++$c){ // $num_cameras instead of 5
+        string $cam = "camera" + $c;
+        string $final_name = "/Users/enric/toronto_project/model_views/model_" + $i + "_cam_" + $c + ".tif"; 
+        
+//        lookThru $cam; 
+        
+        // Create random background rgb color 
+        $name_file = `render -layer DepthLayer $cam`; 
+        
+//        $name_file = `Mayatomr -render -l DepthLayer -pv`; //-cam $cam; 
+        sysFile -move $final_name $name_file;//"/Users/enric/Documents/maya/projects/default/images/tmp/ColorLayer/untitled.tif"; 
+    }
+    
+    select $name;
+    doDelete;
+    
+}
