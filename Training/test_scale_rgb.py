@@ -8,11 +8,11 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 import numpy as np
 
-from rotm2quat import quaternion_from_matrix
-from eval_pair_symm import * #eval_pair
-from transforms import random_transforms
-from get_data_scale_3 import load_dataset
-from save_test_res3 import *
+from utils.rotm2quat import quaternion_from_matrix
+from utils.eval_pair_symm import * #eval_pair
+from utils.transforms import random_transforms
+from get_data.get_data_scale_3 import load_dataset
+from utils.save_test_res import *
 
 
 img_size = 112

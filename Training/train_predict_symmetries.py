@@ -10,17 +10,17 @@ import numpy as np
 
 from IPython import embed
 import cv2
-from rotm2quat import quaternion_from_matrix
-from eval_pair_symm import * #eval_pair
-from transforms import random_transforms
+from utils.rotm2quat import quaternion_from_matrix
+from utils.eval_pair_symm import * #eval_pair
+from utils.transforms import random_transforms
 
 import time
 
-from utils_trainsymmetry import get_probability_order
+from utils.utils_trainsymmetry import get_probability_order
 
 from train_to_predict_sym_and_pose import MLP
-from get_data_more_views_epson import load_epson_views
-from get_data_more_views import load_views
+from get_data.get_data_more_views_epson import load_epson_views
+from get_data.get_data_more_views import load_views
 
 import numpy as np
 import matplotlib

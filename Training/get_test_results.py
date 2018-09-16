@@ -8,20 +8,19 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 import numpy as np
 
-from rotm2quat import quaternion_from_matrix
-from eval_pair_symm import * #eval_pair
-from transforms import random_transforms
+from utils.rotm2quat import quaternion_from_matrix
+from utils.eval_pair_symm import * #eval_pair
+from utils.transforms import random_transforms
 
 from models import Encoder_V, Encoder_S
 
-from save_test_res import *
-#from save_test_res3 import *
+from utils.save_test_res import *
 
 numb_views = 80 #168
 if numb_views == 80:
-  from get_data_epson_80 import load_test_dataset
+  from get_data.get_data_epson_80 import load_test_dataset
 elif numb_views == 168:
-  from get_data_epson_168 import load_test_dataset
+  from get_data.get_data_epson_168 import load_test_dataset
 loadmodel_V = ''
 loadmodel_S = ''
 top = 4

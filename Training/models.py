@@ -9,9 +9,9 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 import numpy as np
 
-from rotm2quat import quaternion_from_matrix
-from eval_pair import eval_pair
-from transforms import random_transforms
+from utils.rotm2quat import quaternion_from_matrix
+from utils.eval_pair import eval_pair
+from utils.transforms import random_transforms
 
 class Encoder_S(nn.Module):
     def __init__(self):

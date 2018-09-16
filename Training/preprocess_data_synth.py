@@ -9,7 +9,7 @@ import os
 import time
 import numpy
 import cv2
-from eval_pair_symm import * #eval_pair
+from utils.eval_pair_symm import * #eval_pair
 #import matplotlib.pyplot as plt
 
 img_size = 224/2 #224 for vgg
@@ -200,7 +200,7 @@ def load_dataset():
 
 _,Y_scene,X_scene,labels_scene,X_views,Y_multiview,labels_views = load_dataset()
 
-from get_data_scale_3 import load_all_dataset_to_recompute_groundtruth
+from get_data.get_data_scale_3 import load_all_dataset_to_recompute_groundtruth
 
 #X_scene,Y_scene,labels_scene,X_views,Y_multiview,labels_views = load_all_dataset_to_recompute_groundtruth()
 

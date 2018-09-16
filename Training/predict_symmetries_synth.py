@@ -10,18 +10,18 @@ import numpy as np
 
 from IPython import embed
 import cv2
-from rotm2quat import quaternion_from_matrix
-from eval_pair_symm import * #eval_pair
-from transforms import random_transforms
+from utils.rotm2quat import quaternion_from_matrix
+from utils.eval_pair_symm import * #eval_pair
+from utils.transforms import random_transforms
 
 img_size = 112
 
 from train_to_predict_symm_lossinsymmetry import get_probability_order
 
-from get_data_scale_3 import load_dataset
+from get_data.get_data_scale_3 import load_dataset
 from train_to_predict_sym_and_pose import MLP
-from get_data_more_views_epson import load_epson_views
-from get_data_more_views import load_views
+from get_data.get_data_more_views_epson import load_epson_views
+from get_data.get_data_more_views import load_views
 
 import numpy as np
 import matplotlib

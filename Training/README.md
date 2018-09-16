@@ -30,4 +30,4 @@ The results can be obtained through the script *get_test_results.py*.
 
 ## Properties of the objects and poses
 
-You can obtain a few details on the data and view properties using the following scripts. The code in *get_distribution_ground_truth.py* shows the distribution of the ground truth poses. The scripts *transforms.py* *utils_trainsymmetry.py* *rotm2quat.py* and *eval_pair_symm.py* summarize the theoretical properties that we have used for improving our pose estimation algorithms. 
+You can obtain a few details on the data and view properties using the following scripts. The code in *useful_scripts/get_distribution_ground_truth.py* shows the distribution of the ground truth poses. The scripts *transforms.py* *utils_trainsymmetry.py* *rotm2quat.py* and *eval_pair_symm.py* summarize the theoretical properties that we have used for improving our pose estimation algorithms. 

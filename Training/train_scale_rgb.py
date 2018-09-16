@@ -8,9 +8,9 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 import numpy as np
 
-from rotm2quat import quaternion_from_matrix
-from eval_pair_symm import * #eval_pair
-from transforms import random_transforms
+from utils.rotm2quat import quaternion_from_matrix
+from utils.eval_pair_symm import * #eval_pair
+from utils.transforms import random_transforms
 
 img_size = 112
 
@@ -23,9 +23,9 @@ numb_views = 80
 considering_symmetries = True
 
 if numb_views == 80:
-  from get_data_synth_80 import load_dataset
+  from get_data.get_data_synth_80 import load_dataset
 elif numb_views == 168:
-  from get_data_synth_168 import load_dataset
+  from get_data.get_data_synth_168 import load_dataset
 
 def train(epoch,X,Y,labels,X_views,Y_views,labels_views):
     model_S.train()
